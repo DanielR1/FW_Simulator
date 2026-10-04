@@ -26,10 +26,11 @@ MEAN_AERO_CHORD = 0.1759 #m
 MAX_THRUST_ONE_MOTOR_N = 6.62 #N
 MAX_DEFLECTION_TED_RAD = 20*np.pi/180 #20 degrees down max
 MIN_DEFLECTION_TED_RAD = -20*np.pi/180 #20 degrees up max
+
 # ==================== Simulation Parameters ====================
 SIMULATION_RATE = 500  # Hz
 DT = 1.0 / SIMULATION_RATE  # time step
-FINAL_TIME = 3.4  # seconds
+FINAL_TIME = 10  # seconds
 
 # ==================== Initial Conditions ====================
 # NED world frame: x North, y East, z Down. Altitude = -z (so 1 m up is z = -1).

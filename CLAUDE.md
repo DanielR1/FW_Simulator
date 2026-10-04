@@ -176,19 +176,22 @@ The last commit notes the sim "runs and gets (wrong) answers." Several issues ar
 thrust axis (hover quaternion aligns body-x), force sign (`FM_aero + FM_control`), alpha/beta units
 (radians at trig sites), gravity feed-forward, the **frame convention is now NED world + FRD body**
 throughout (gravity +z, lift toward −z, hover start attitude), `plotter.py` (correct columns +
-altitude plotted as −z), and the guidance z-setpoint (now −1 m, matching the start altitude, so the
-sim holds altitude instead of descending). Remaining open items — confirm intent before "fixing."
-Full discussion in [docs/algorithm.md](docs/algorithm.md) §8.
+altitude plotted as −z), the guidance z-setpoint (now −1 m, matching the start altitude), and the
+**missing `1/m` in the translational EOM**: `dynamics.rates` used force as acceleration, so the plant
+acted like a 1 kg vehicle and altitude drooped by `g(1/m − 1)/Kp_z` (0.17 m at Kp_z = 12, 0.067 m at
+30). It now uses `R·F/m` and holds 1.000 m; `aero_comp` divides by mass too. Remaining open items —
+confirm intent before "fixing." Full discussion in [docs/algorithm.md](docs/algorithm.md) §8.
 
 - **`alpha`/`beta` are stored in DEGREES** (`compute_alpha_beta`). The XFLR5 table lookup and the
   AoA branch logic use degrees; every trig site converts to radians first (`np.radians`). Keep
   this split if you touch the aero code.
 - **Guidance z-setpoint is hard-coded to −1 m.** `basic_guidance` only shapes the x (North) axis;
   its position setpoint is `[…, 0, −1]` (NED: −1 = 1 m altitude), matching the start. Change it
-  there if you change the start altitude. The PD has no integrator, so expect a small steady-state
-  altitude droop (~0.17 m).
-- **`aero_comp` units.** It subtracts an aero **force** (N) from an acceleration command (m/s²)
-  without dividing by mass — likely should be `… - a_aero_global / m`.
+  there if you change the start altitude.
+- **No integrator in the guidance PD.** Any constant force the controller doesn't model shows up as
+  a steady position error of `bias / Kp` (that's how the missing `1/m` produced the old droop). On
+  hardware, mass/thrust-curve error or battery sag will do the same — add an integral term (with
+  anti-windup) before flying.
 - **Verify `aero.py` Cm sign.** Lift/drag are now FRD-correct, but confirm the XFLR5 `Cm` column is
   nose-up-positive about +y (FRD) before trusting pitch dynamics.
 - **Sim stop time:** `main.py` unconditionally breaks at `t > CRASH_CHECK_TIME` (3.0 s), so
@@ -198,7 +201,9 @@ Full discussion in [docs/algorithm.md](docs/algorithm.md) §8.
 - **Integration:** plain forward **Euler** (`dynamics.propagate`); a `# Do RK4 later` note flags
   the intended upgrade.
 - **Data-sheet mismatches (deferred):** mass (config `0.829 kg` vs CSV `560 g`) and prop size
-  (6″ described vs 5″ in CSV) — to be reconciled later.
+  (6″ described vs 5″ in CSV) — to be reconciled later. In sim the controller and plant share
+  `config.MASS`, so they always agree; on hardware a wrong `MASS` causes exactly the steady
+  altitude droop described above.
 - `polynomial_traj.py` references undefined names — legacy, not on the active path.
 
 ## 9. Working agreements

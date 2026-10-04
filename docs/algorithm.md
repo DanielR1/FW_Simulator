@@ -65,16 +65,18 @@ deflections (rad, trailing-edge-down positive).
 
 ### 2.1 Basic guidance (`basic_guidance.get_a_com_bg`)
 
-An open-loop **acceleration schedule along +x**, with PD tracking of the implied position/velocity:
+An open-loop **acceleration schedule along +x (North)**, with PD tracking of the implied
+position/velocity. The z setpoint is held at −1 (1 m altitude, NED), matching the start:
 
-| Phase | Time (s) | a_des (m/s²) | v_des (m/s) | pos_des (m) |
-|-------|----------|--------------|-------------|-------------|
-| 1 accel | 0 ≤ t < 1 | [1, 0, 0] | [t, 0, 0] | [0.5 t², 0, 0] |
-| 2 cruise | 1 ≤ t < 4 | [0, 0, 0] | [1, 0, 0] | [0.5 + (t−1), 0, 0] |
-| 3 decel | 4 ≤ t < 5 | [−1, 0, 0] | [1−(t−4), 0, 0] | [3.5 + (t−4) − 0.5(t−4)², 0, 0] |
-| 4 hold | t ≥ 5 | 0 | 0 | [4, 0, 0] |
+| Phase | Time (s) | a_des (m/s²) | v_des (m/s) | pos_des (m, NED) |
+|-------|----------|--------------|-------------|------------------|
+| 1 accel | 0 ≤ t < 1 | [1, 0, 0] | [t, 0, 0] | [0.5 t², 0, −1] |
+| 2 cruise | 1 ≤ t < 4 | [0, 0, 0] | [1, 0, 0] | [0.5 + (t−1), 0, −1] |
+| 3 decel | 4 ≤ t < 5 | [−1, 0, 0] | [1−(t−4), 0, 0] | [3.5 + (t−4) − 0.5(t−4)², 0, −1] |
+| 4 hold | t ≥ 5 | 0 | 0 | [4, 0, −1] |
 
-Feedback (PD on tracking error), with gains `Kp_BG = diag(12,12,12)`, `Kd_BG = diag(4,4,4)`:
+Feedback (PD on tracking error), with gains `Kp_BG = diag(12, 12, 30)`, `Kd_BG = diag(4, 4, 12)`
+(stiffer altitude axis):
 
 ```
 e_p = state[0:3] − pos_des
@@ -82,9 +84,9 @@ e_v = state[3:6] − v_des
 a_com = a_des − Kp_BG · e_p − Kd_BG · e_v
 ```
 
-> **Note:** no gravity term is added here (the legacy commented guidance added `+[0,0,g]`).
-> The downstream controller therefore receives an `a_com` that does not explicitly include
-> hover thrust to counter gravity. See §8.
+> **Note:** guidance outputs a pure *kinematic* acceleration; gravity and aero compensation happen
+> in the controller (§3, §4). There is no integrator, so any constant force the controller doesn't
+> model appears as a steady position error of `bias / Kp` (see §8).
 
 ### 2.2 Legacy polynomial trajectory (`polynomial_traj.py`)
 
@@ -107,12 +109,12 @@ CX  = CD0 · cos(αr)                     # axial coeff
 CZ  = (CDmax + CD0) · sin(αr)           # normal coeff
 Fx_body = −½ ρ V² S · CX
 Fz_body = −½ ρ V² S · CZ               # NED/FRD: +α normal force acts up (−z)
-a_aero_G = R(q) · [Fx_body, 0, Fz_body]
+a_aero_G = R(q) · [Fx_body, 0, Fz_body] / m   # force (N) → specific force (m/s²), m = MASS
 a_com  ←  a_com − a_aero_G
 ```
 
-> Note this still subtracts an aero **force** (N) from an acceleration command (m/s²) without
-> dividing by mass — a separate pre-existing issue (see §8).
+> Dividing by `m` makes the predicted aero term an acceleration so it can be subtracted from the
+> acceleration command (previously missing; fixed alongside the plant's `1/m`, see §8).
 
 ---
 
@@ -302,28 +304,35 @@ Forward **Euler**: `state[0:13] += dt · rates(...)`. Then renormalize the quate
 gravity +z §7.1, lift toward −z §7.3, gravity feed-forward −g §4, hover start attitude); thrust-axis
 convention (hover quaternion maps body-x → `a_hat`, §4.2); force sign in `rates`
 (`FM_aero + FM_control`, §7.1); alpha/beta units (degrees for table lookup, radians for all trig);
-and `plotter.py` (correct 20-column map, altitude plotted as −z, broken animation removed).
+`plotter.py` (correct 20-column map, altitude plotted as −z, broken animation removed); and the
+**missing `1/m` in the translational EOM**. `dynamics.rates` applied `R·F` directly as an
+acceleration, so the plant behaved like a 1 kg vehicle while the controller planned for
+`MASS = 0.829 kg`. Hover then needed 9.8 N instead of m·g = 8.12 N, and the PD made up the shortfall
+with a standing altitude error of `g(1/m − 1)/Kp_z` (0.17 m at Kp_z = 12, 0.067 m at 30). It now
+uses `R·F/m` (§7.1) and holds 1.000 m; `aero_comp` divides by `m` as well (§3).
 The items below are still open — **confirm intent before changing; several are convention/design
 choices, not obvious bugs.**
 
 1. **Guidance z-setpoint is hard-coded to −1 m.** `basic_guidance` only shapes the x (North) axis;
    its position setpoint is `[…, 0, −1]` (NED: −1 = 1 m altitude), matching the start (the earlier
    `z = 0` setpoint, i.e. the ground, made the sim descend — now fixed). Change it there if the
-   start altitude changes. The PD has no integrator, so expect a small steady-state altitude
-   droop (~0.17 m).
+   start altitude changes.
 
-2. **Verify `aero.py` Cm sign.** Lift/drag are now FRD-correct (§7.3), but confirm the XFLR5 `Cm`
+2. **No integrator in the guidance PD.** Any constant force the controller doesn't model appears as
+   a steady position error of `bias / Kp` — that is how the missing `1/m` showed up as altitude
+   droop. On hardware, mass or thrust-curve error and battery sag will do the same; add an integral
+   term (with anti-windup) before flying.
+
+3. **Verify `aero.py` Cm sign.** Lift/drag are now FRD-correct (§7.3), but confirm the XFLR5 `Cm`
    column is nose-up-positive about +y before trusting the pitch response.
-
-3. **`aero_comp` units.** §3 subtracts an aero **force** (N) from an acceleration command (m/s²)
-   without dividing by mass — likely should be `a_com − a_aero_global / m`.
 
 4. **FW bank-to-turn (§4.3) unvalidated in NED.** The coordinated-turn construction (`phi_d`,
    ZXY-Euler `q_d_fw`) was carried over unchanged; validate signs in forward flight (only active
    above the `V_min = 2 m/s` blend).
 
 5. **Mass mismatch (deferred).** `config.MASS = 0.829 kg` vs CSV "Total 560 g" (CSV row is itself
-   inconsistent: 560 g ≠ 1.653 lb). Scales every force↔acceleration conversion.
+   inconsistent: 560 g ≠ 1.653 lb). In sim the controller and plant both use `config.MASS`, so they
+   agree; on hardware a wrong `MASS` produces exactly the steady altitude droop of item 2.
 
 6. **Prop size (deferred).** 6-inch props described vs **5 in** in the CSV.
 
@@ -357,7 +366,7 @@ choices, not obvious bugs.**
 | Init | POSITION / VELOCITY | [0,0,−1] m (1 m alt, NED) / [0,0,0] |
 | Init | QUATERNION / ANGULAR_VELOCITY | [0.7071,0,0.7071,0] (nose-up hover) / [0,0,0] |
 | Target | FINAL_POSITION | [1, −1, −0.6] m (NED) |
-| Guidance gains | Kp_BG / Kd_BG | diag(12) / diag(4) |
+| Guidance gains | Kp_BG / Kd_BG | diag(12, 12, 30) / diag(4, 4, 12) |
 | Attitude gains | Kp_ATTITUDE / Kd_ATTITUDE / LAMBDA | diag(3.7) / diag(0.19) / diag(0.2) |
 | Aero (flat plate) | CD_MAX_FLAT / CD_0_FLAT | 1.2 / 0.05 |
 | Safety | MIN_ALTITUDE / CRASH_CHECK_TIME | 0.1 m / 3.0 s |

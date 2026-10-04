@@ -25,7 +25,7 @@ def aero_comp(a_com_old, state):
     CZ = (CDMax+CD0)*np.sin(alpha_rad)
     Fx_body = -0.5*rho*V**2*S*CX
     Fz_body = -0.5*rho*V**2*S*CZ #NED/FRD: z points down, normal aero force at +alpha acts up (-z)
-    a_aero_body = np.array([Fx_body, 0, Fz_body])
+    a_aero_body = np.array([Fx_body, 0, Fz_body]) / config.MASS  # aero force (N) -> specific force (m/s^2)
     a_aero_global = qhelp.quat_to_R(q) @ a_aero_body
     a_com_new = a_com_old - a_aero_global
     return a_com_new
