@@ -108,10 +108,6 @@ while running:
     if state[2] > -config.MIN_ALTITUDE and t > config.CRASH_CHECK_TIME:
         print("CRASH!!!")
         break
-        #override
-    if t > config.CRASH_CHECK_TIME:
-        print("sim stop")
-        break
 
     # Update data array (this can probably be done in a much cleaner way...)
     tmp = np.append(t,state)
@@ -125,6 +121,8 @@ while running:
     # If time exceeds final time then stop simulator
     if t >= tf:
         running = False
+
+print(f"sim stop: t = {t:.3f} s")
 
 # Will delete this... for trajectory plotting
 

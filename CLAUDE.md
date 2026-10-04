@@ -179,7 +179,8 @@ throughout (gravity +z, lift toward −z, hover start attitude), `plotter.py` (c
 altitude plotted as −z), the guidance z-setpoint (now −1 m, matching the start altitude), and the
 **missing `1/m` in the translational EOM**: `dynamics.rates` used force as acceleration, so the plant
 acted like a 1 kg vehicle and altitude drooped by `g(1/m − 1)/Kp_z` (0.17 m at Kp_z = 12, 0.067 m at
-30). It now uses `R·F/m` and holds 1.000 m; `aero_comp` divides by mass too. Remaining open items —
+30). It now uses `R·F/m` and holds 1.000 m; `aero_comp` divides by mass too. A leftover override in
+`main.py` that stopped every run at 3 s is also gone; runs now last `FINAL_TIME`. Remaining open items —
 confirm intent before "fixing." Full discussion in [docs/algorithm.md](docs/algorithm.md) §8.
 
 - **`alpha`/`beta` are stored in DEGREES** (`compute_alpha_beta`). The XFLR5 table lookup and the
@@ -194,8 +195,10 @@ confirm intent before "fixing." Full discussion in [docs/algorithm.md](docs/algo
   anti-windup) before flying.
 - **Verify `aero.py` Cm sign.** Lift/drag are now FRD-correct, but confirm the XFLR5 `Cm` column is
   nose-up-positive about +y (FRD) before trusting pitch dynamics.
-- **Sim stop time:** `main.py` unconditionally breaks at `t > CRASH_CHECK_TIME` (3.0 s), so
-  `FINAL_TIME` (3.4 s) is never reached; effective run ≈ 3.0 s.
+- **Crash detection has a 3 s grace period.** `main.py` only checks for a crash
+  (`z > −MIN_ALTITUDE`) once `t > CRASH_CHECK_TIME` (3.0 s); a crash before then keeps simulating
+  underground until 3 s. Set it to 0 to catch crashes immediately (the vehicle starts airborne).
+  The run itself lasts `FINAL_TIME` (currently 10 s).
 - **Allocation placeholders:** moment coeffs `cx = 0.144`, `cy = 0.0616` ("Gemini 4/28"); the A2
   matrix is singular when either motor is at the 0.1 N floor.
 - **Integration:** plain forward **Euler** (`dynamics.propagate`); a `# Do RK4 later` note flags

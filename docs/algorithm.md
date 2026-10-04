@@ -27,7 +27,8 @@ One simulation tick (`scripts/main.py`, the `while running:` loop, 500 Hz):
 | Dynamics | `truth_model/dynamics.py`, `aero.py` | propagated state |
 
 Loop rate `SIMULATION_RATE = 500 Hz`, `dt = 0.002 s`. Integration is forward Euler.
-The loop stops at `t > CRASH_CHECK_TIME (3.0 s)` or on crash (`z > −MIN_ALTITUDE`, NED ground).
+The loop runs until `FINAL_TIME` (10 s), or stops early on a crash (`z > −MIN_ALTITUDE`, NED
+ground), which is only checked once `t > CRASH_CHECK_TIME` (3.0 s).
 
 ---
 
@@ -309,7 +310,9 @@ convention (hover quaternion maps body-x → `a_hat`, §4.2); force sign in `rat
 acceleration, so the plant behaved like a 1 kg vehicle while the controller planned for
 `MASS = 0.829 kg`. Hover then needed 9.8 N instead of m·g = 8.12 N, and the PD made up the shortfall
 with a standing altitude error of `g(1/m − 1)/Kp_z` (0.17 m at Kp_z = 12, 0.067 m at 30). It now
-uses `R·F/m` (§7.1) and holds 1.000 m; `aero_comp` divides by `m` as well (§3).
+uses `R·F/m` (§7.1) and holds 1.000 m; `aero_comp` divides by `m` as well (§3). Also removed: a
+leftover override in `main.py` that stopped every run at `CRASH_CHECK_TIME` (3 s); runs now last
+`FINAL_TIME`.
 The items below are still open — **confirm intent before changing; several are convention/design
 choices, not obvious bugs.**
 
@@ -343,8 +346,9 @@ choices, not obvious bugs.**
 8. **A2 conditioning.** Allocation stage A2 is singular when either motor thrust is at/near the
    0.1 N floor (slipstream ≈ 0). Consider a regularized/clamped inverse or a minimum effective thrust.
 
-9. **Sim duration.** `main.py` always breaks at `t > CRASH_CHECK_TIME = 3.0 s`, so `FINAL_TIME =
-   3.4 s` and the `t >= tf` exit are dead code; the run is effectively 3.0 s.
+9. **Crash-detection grace period.** The crash check (`z > −MIN_ALTITUDE`) only runs once
+   `t > CRASH_CHECK_TIME = 3.0 s`, so a crash before then keeps simulating underground until 3 s.
+   Set it to 0 to catch crashes immediately (the vehicle starts airborne).
 
 10. **Integration order.** Forward Euler at 500 Hz; rotational dynamics + quaternion kinematics
     would benefit from RK4 (already flagged in-code).
@@ -362,7 +366,7 @@ choices, not obvious bugs.**
 | Allocation | MOMENT_COEFF_X / _Y | 0.144 / 0.0616 |
 | Limits | MAX_THRUST_ONE_MOTOR_N | 6.62 N |
 | Limits | MIN/MAX_DEFLECTION_TED_RAD | ±20° |
-| Sim | SIMULATION_RATE / DT / FINAL_TIME | 500 Hz / 0.002 s / 3.4 s |
+| Sim | SIMULATION_RATE / DT / FINAL_TIME | 500 Hz / 0.002 s / 10 s |
 | Init | POSITION / VELOCITY | [0,0,−1] m (1 m alt, NED) / [0,0,0] |
 | Init | QUATERNION / ANGULAR_VELOCITY | [0.7071,0,0.7071,0] (nose-up hover) / [0,0,0] |
 | Target | FINAL_POSITION | [1, −1, −0.6] m (NED) |
