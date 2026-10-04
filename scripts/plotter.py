@@ -205,9 +205,9 @@ ax = new_fig('3D Trajectory', projection='3d')
 ax.plot(y, x, altitude, color='blue', label='Trajectory')
 ax.scatter(y[0], x[0], altitude[0], color='green', s=40, label='Start')
 ax.scatter(y[-1], x[-1], altitude[-1], color='red', s=40, label='End')
-set_axes_equal(ax, y, x, altitude)
-for axis_name in ('x', 'y', 'z'):
-    ax.locator_params(axis=axis_name, nbins=4)  # fewer ticks so narrow axes stay readable
+#set_axes_equal(ax, y, x, altitude)
+#for axis_name in ('x', 'y', 'z'):
+ #   ax.locator_params(axis=axis_name, nbins=4)  # fewer ticks so narrow axes stay readable
 ax.view_init(elev=22, azim=-30)
 ax.set_xlabel('East (m)')
 ax.set_ylabel('North (m)')

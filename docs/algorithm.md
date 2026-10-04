@@ -1,7 +1,7 @@
 # algorithm.md — Guidance & Control Loop Reference
 
 Detailed reference for the fixed-wing tailsitter guidance → attitude-control → allocation →
-dynamics pipeline. Referenced from [CLAUDE.md](CLAUDE.md). File/line citations point at the
+dynamics pipeline. Referenced from [CLAUDE.md](../CLAUDE.md). File/line citations point at the
 implementation so this doc and the code can be kept in sync.
 
 ---
@@ -306,11 +306,11 @@ and `plotter.py` (correct 20-column map, altitude plotted as −z, broken animat
 The items below are still open — **confirm intent before changing; several are convention/design
 choices, not obvious bugs.**
 
-1. **Guidance z-setpoint = 0.** `basic_guidance` only shapes the x (North) axis; its implied
-   position setpoint is `[…, 0, 0]`, and in NED **z=0 is the ground**, so from the `z = −1 m`
-   (1 m altitude) start the position PD commands a descent into the ground — why the sim descends
-   and trips the crash check. For an altitude-hold/hover test set the z setpoint to the target
-   altitude (e.g. `−1`).
+1. **Guidance z-setpoint is hard-coded to −1 m.** `basic_guidance` only shapes the x (North) axis;
+   its position setpoint is `[…, 0, −1]` (NED: −1 = 1 m altitude), matching the start (the earlier
+   `z = 0` setpoint, i.e. the ground, made the sim descend — now fixed). Change it there if the
+   start altitude changes. The PD has no integrator, so expect a small steady-state altitude
+   droop (~0.17 m).
 
 2. **Verify `aero.py` Cm sign.** Lift/drag are now FRD-correct (§7.3), but confirm the XFLR5 `Cm`
    column is nose-up-positive about +y before trusting the pitch response.

@@ -1,11 +1,11 @@
-# CLAUDE.md — Fixed-Wing Tailsitter: Controls & Simulation
+# CLAUDE.md — Fixed-Wing Tailsitter: FW_Simulator (Controls & Simulation)
 
 > Always read this file first when working in this directory. It is the orientation
-> map for the project. The full guidance/control math lives in **[algorithm.md](algorithm.md)** —
+> map for the project. The full guidance/control math lives in **[docs/algorithm.md](docs/algorithm.md)** —
 > reference it whenever you touch the flight code or the simulator dynamics.
 >
 > **Keep the docs in sync:** whenever a change affects behavior, conventions, parameters, frames,
-> or the algorithm, update **both** `CLAUDE.md` and `algorithm.md` as part of that same change.
+> or the algorithm, update **both** `CLAUDE.md` and `docs/algorithm.md` as part of that same change.
 
 ## 1. What this project is
 
@@ -35,36 +35,43 @@ guidance loop**.
 
 ## 3. Repository layout
 
-Everything currently lives under `Simulator/`. Run the code from `Simulator/scripts/`.
+`FW_Simulator/` is its **own git repo** (`github.com/DanielR1/FW_Simulator`), included in the parent
+`Fixed_Wing_Capstone` repo as a **submodule** at `Controls and Simulation/FW_Simulator`. Commit
+changes inside `FW_Simulator/` first; the parent repo then records the new submodule commit.
+Run the code from the `FW_Simulator/` root (the repo root is the working directory).
 
 ```
-Controls and Simulation/
+FW_Simulator/                      ← repo root (submodule of Fixed_Wing_Capstone)
 ├── CLAUDE.md                      ← you are here
-├── algorithm.md                   ← full guidance + control + dynamics math
-└── Simulator/
-    ├── P0 Dimesions - updated.csv ← vehicle geometry / mass / thrust spec sheet
-    ├── .venv/                     ← Python 3.14 virtualenv (numpy, matplotlib, pillow)
-    ├── data/                      ← sim output CSVs (data_<timestamp>.csv)
-    └── scripts/
-        ├── main.py                ← simulation entry point (the 6-DOF loop)
-        ├── config.py              ← ALL parameters, gains, limits, initial conditions
-        ├── plotter.py             ← plots the most-recent data/*.csv in ONE tabbed Tk window
-        ├── quaternion_helpers.py  ← quat math, SLERP, Euler<->quat, quat<->R
-        ├── helper_funcs.py        ← compute_alpha_beta() from state
-        ├── rates.py               ← (empty placeholder)
-        ├── flight_code/           ← THE FLIGHT STACK (would run on the real vehicle)
-        │   ├── navigation.py      ← state estimation (currently perfect pass-through)
-        │   ├── control.py         ← accel cmd → desired quat → SMC torque → allocation
-        │   ├── aero_comp.py       ← aero feed-forward (subtract predicted lift/drag accel)
-        │   └── guidance/
-        │       ├── guidance.py        ← guidance dispatcher (selects a mode)
-        │       ├── basic_guidance.py  ← active: timed accel profile + PD tracking
-        │       └── polynomial_traj.py ← legacy 7th-order gate trajectory (unused/broken imports)
-        └── truth_model/           ← THE PLANT (sim ground truth; NOT on real vehicle)
-            ├── dynamics.py        ← rigid-body EOM, force/moment assembly, Euler integration
-            ├── aero.py            ← XFLR5 table lookup + flat-plate blend for lift/drag/Cm
-            ├── AERO_XFLR5.tsv      ← aero coefficient table vs alpha
-            └── eq_motion.py       ← (empty placeholder)
+├── README.md                      ← (placeholder)
+├── requirements.txt               ← numpy==2.4.1, matplotlib==3.10.8
+├── P0 Dimesions - updated.csv     ← vehicle geometry / mass / thrust spec sheet
+├── .venv/                         ← Python 3.14 virtualenv (git-ignored)
+├── .vscode/launch.json            ← run/debug configs (cwd = repo root)
+├── docs/
+│   └── algorithm.md               ← full guidance + control + dynamics math
+├── data/                          ← sim output CSVs (data_<timestamp>.csv; git-ignored)
+└── scripts/
+    ├── main.py                    ← simulation entry point (the 6-DOF loop)
+    ├── config.py                  ← ALL parameters, gains, limits, initial conditions
+    ├── plotter.py                 ← plots the most-recent data/*.csv in ONE tabbed Tk window
+    ├── quaternion_helpers.py      ← quat math, SLERP, Euler<->quat, quat<->R
+    ├── helper_funcs.py            ← compute_alpha_beta() from state
+    ├── rates.py                   ← (empty placeholder)
+    ├── old/                       ← superseded main.py / dynamics.py (reference only)
+    ├── flight_code/               ← THE FLIGHT STACK (would run on the real vehicle)
+    │   ├── navigation.py          ← state estimation (currently perfect pass-through)
+    │   ├── control.py             ← accel cmd → desired quat → SMC torque → allocation
+    │   ├── aero_comp.py           ← aero feed-forward (subtract predicted lift/drag accel)
+    │   └── guidance/
+    │       ├── guidance.py            ← guidance dispatcher (selects a mode)
+    │       ├── basic_guidance.py      ← active: timed accel profile + PD tracking
+    │       └── polynomial_traj.py     ← legacy 7th-order gate trajectory (unused/broken imports)
+    └── truth_model/               ← THE PLANT (sim ground truth; NOT on real vehicle)
+        ├── dynamics.py            ← rigid-body EOM, force/moment assembly, Euler integration
+        ├── aero.py                ← XFLR5 table lookup + flat-plate blend for lift/drag/Cm
+        ├── AERO_XFLR5.tsv         ← aero coefficient table vs alpha
+        └── eq_motion.py           ← (empty placeholder)
 ```
 
 **Key architectural split:** `flight_code/` is the controller that would be deployed on the
@@ -75,17 +82,20 @@ read truth-model internals.
 ## 4. How to run
 
 The scripts use flat imports (`import config`, `from truth_model import dynamics`), so the
-**script directory must be on the path** — run with `Simulator/` as the working directory.
+**script directory must be on the path** — running `python scripts/<file>.py` from the
+`FW_Simulator/` root handles that (Python puts the script's folder on the path), and the `data/`
+paths in `config.py`/`plotter.py` are relative to that root.
 
 ```bash
-cd "Simulator"
-source .venv/bin/activate          # Python 3.14 venv
+cd FW_Simulator
+python3 -m venv .venv && source .venv/bin/activate   # first time only
+pip install -r requirements.txt                       # first time only (numpy, matplotlib)
 python scripts/main.py             # runs the sim, writes data/data_<timestamp>.csv
 python scripts/plotter.py          # plots the most recent data/*.csv
 ```
 
-Or use the VS Code launch configs in `Simulator/.vscode/launch.json`
-("Python: Run main.py", "Python: Run plotter.py"). They set `cwd` to `Simulator/`.
+Or use the VS Code launch configs in `.vscode/launch.json`
+("Python: Run main.py", "Python: Run plotter.py"). They set `cwd` to the `FW_Simulator/` root.
 
 - Output columns (20): `t, x,y,z, vx,vy,vz, qw,qx,qy,qz, wx,wy,wz, alpha,beta, T1,T2,delta1,delta2`
   (`t` + 15 state elements + 4 controls). `plotter.py` reads this layout and plots altitude as −z.
@@ -134,7 +144,7 @@ nav.get_estimated_states → guid.get_a_com → controller.get_control_inputs �
 ```
 
 Full derivations (hover/fixed-wing desired-quaternion blend, SLERP, SMC torque law, the two
-allocation matrices A1/A2, and the truth-model EOM) are in **[algorithm.md](algorithm.md)**.
+allocation matrices A1/A2, and the truth-model EOM) are in **[docs/algorithm.md](docs/algorithm.md)**.
 
 ## 7. Vehicle parameters (quick reference)
 
@@ -165,18 +175,18 @@ Geometry from `P0 Dimesions - updated.csv`; dynamics constants from `config.py`.
 The last commit notes the sim "runs and gets (wrong) answers." Several issues are now **fixed** —
 thrust axis (hover quaternion aligns body-x), force sign (`FM_aero + FM_control`), alpha/beta units
 (radians at trig sites), gravity feed-forward, the **frame convention is now NED world + FRD body**
-throughout (gravity +z, lift toward −z, hover start attitude), and `plotter.py` (correct columns +
-altitude plotted as −z). Remaining open items — confirm intent before "fixing." Full discussion in
-[algorithm.md](algorithm.md) §8.
+throughout (gravity +z, lift toward −z, hover start attitude), `plotter.py` (correct columns +
+altitude plotted as −z), and the guidance z-setpoint (now −1 m, matching the start altitude, so the
+sim holds altitude instead of descending). Remaining open items — confirm intent before "fixing."
+Full discussion in [docs/algorithm.md](docs/algorithm.md) §8.
 
 - **`alpha`/`beta` are stored in DEGREES** (`compute_alpha_beta`). The XFLR5 table lookup and the
   AoA branch logic use degrees; every trig site converts to radians first (`np.radians`). Keep
   this split if you touch the aero code.
-- **Guidance z-setpoint = 0.** `basic_guidance` only shapes the x (North) axis; its implied
-  position setpoint is `[…, 0, 0]`, and in NED **z=0 is the ground**, so from the `z = −1 m` (1 m
-  altitude) start the position PD commands a descent into the ground — this is why the sim still
-  descends/crashes. For an altitude-hold/hover test, set the guidance z setpoint to your target
-  altitude (e.g. `−1`).
+- **Guidance z-setpoint is hard-coded to −1 m.** `basic_guidance` only shapes the x (North) axis;
+  its position setpoint is `[…, 0, −1]` (NED: −1 = 1 m altitude), matching the start. Change it
+  there if you change the start altitude. The PD has no integrator, so expect a small steady-state
+  altitude droop (~0.17 m).
 - **`aero_comp` units.** It subtracts an aero **force** (N) from an acceleration command (m/s²)
   without dividing by mass — likely should be `… - a_aero_global / m`.
 - **Verify `aero.py` Cm sign.** Lift/drag are now FRD-correct, but confirm the XFLR5 `Cm` column is
@@ -194,8 +204,10 @@ altitude plotted as −z). Remaining open items — confirm intent before "fixin
 ## 9. Working agreements
 
 - **Keep the docs in sync.** Whenever a change affects behavior, conventions, parameters, frames,
-  or the algorithm, **update both `CLAUDE.md` and `algorithm.md` in the same change.** Treat the
-  docs as part of "done."
+  or the algorithm, **update both `CLAUDE.md` and `docs/algorithm.md` in the same change.** Treat
+  the docs as part of "done."
+- **Submodule workflow.** This folder is its own repo; commit here first, then the parent
+  `Fixed_Wing_Capstone` repo picks up the new submodule commit. `data/` and `.venv/` are git-ignored.
 - **`config.py` is the single source of truth** for parameters/gains/limits. Don't hard-code
   constants elsewhere — add them to `config.py`.
 - Preserve the `flight_code/` ↔ `truth_model/` boundary (controller sees only nav state).
