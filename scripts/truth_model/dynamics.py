@@ -107,8 +107,8 @@ class dynamics:
 	def get_control_forces_moments_body(self, ctrl_in):
 		#takes the state and the control vector and calculates the forces and moments created by the four control inputs (two thrust, two deltas)
 		(T1, T2, delta_1, delta_2) = ctrl_in
-		cx = config.MOMENT_COEFF_X
-		cy = config.MOMENT_COEFF_Y
+		cx = config.c_prop_roll
+		cy = config.c_prop_pitch
 		l_y = config.THRUST_MOMENT_ARM_Y_m
 		tau_x_Nm = cx*T1*delta_1-cx*T2*delta_2 # rolling/x moment
 		tau_y_Nm = -cy*T1*delta_1 - cy*T2*delta_2 # pitching/y moment

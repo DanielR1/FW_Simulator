@@ -208,8 +208,8 @@ Commanded body torque (gains `Kp_ATTITUDE = diag(3.7)`, `Kd_ATTITUDE = diag(0.19
 
 ## 6. Control allocation — torque + thrust → `[T1, T2, δ1, δ2]`
 
-Two stages. Parameters: `l_y = THRUST_MOMENT_ARM_Y_m = 0.14 m`, `cx = MOMENT_COEFF_X = 0.144`,
-`cy = MOMENT_COEFF_Y = 0.0616`. Indices: 1 = left, 2 = right.
+Two stages. Parameters: `l_y = THRUST_MOMENT_ARM_Y_m = 0.14 m`, `cx = c_prop_roll = 0.144`,
+`cy = c_prop_pitch = 0.0616`. Indices: 1 = left, 2 = right.
 
 ### 6.1 Stage A1 — yaw moment + total thrust → motor thrusts
 
@@ -363,7 +363,7 @@ choices, not obvious bugs.**
 | Mass/inertia | MASS / INERTIA_TENSOR | 0.829 kg / diag(0.002814, 0.003882, 0.002334) |
 | Geometry | WING_AREA / MEAN_AERO_CHORD | 0.0923 m² / 0.1759 m |
 | Geometry | MOMENT_ARM / THRUST_MOMENT_ARM_Y_m | 0.14 m / 0.14 m |
-| Allocation | MOMENT_COEFF_X / _Y | 0.144 / 0.0616 |
+| Allocation | c_prop_roll / _Y | 0.144 / 0.0616 |
 | Limits | MAX_THRUST_ONE_MOTOR_N | 6.62 N |
 | Limits | MIN/MAX_DEFLECTION_TED_RAD | ±20° |
 | Sim | SIMULATION_RATE / DT / FINAL_TIME | 500 Hz / 0.002 s / 10 s |

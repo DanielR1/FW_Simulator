@@ -137,8 +137,8 @@ class Controller:
         
         # Convert to forces
         l_y = config.THRUST_MOMENT_ARM_Y_m
-        cx = config.MOMENT_COEFF_X
-        cy = config.MOMENT_COEFF_Y
+        cx = config.c_prop_roll
+        cy = config.c_prop_pitch
 
 
         #Step 1: Find thrust forces from yaw moment and total thrust

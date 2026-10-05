@@ -17,8 +17,8 @@ INERTIA_TENSOR = np.array([
 # Geometry
 MOMENT_ARM = 0.14  # meters, distance from center to motor (use for FW)
 THRUST_MOMENT_ARM_Y_m = 0.14 # Distance from center to a propeller in the y direction. used for yaw moment calculation
-MOMENT_COEFF_X = 0.144 # coefficient for A2 allocation matrix. multiplied by thrust and deflection to get x roll moment. DERIVED GEMINI 4/28. to be used for radian deflections temp for now, change when CG
-MOMENT_COEFF_Y = 0.0616 # coefficient for A2 allocation matrix. multiplied by thrust and deflection to get y roll moment DERIVED GEMINI 4/28
+c_prop_roll = 0.0581 # coefficient for A2 allocation matrix. multiplied by thrust and deflection to get x roll moment. DERIVED GEMINI 4/28. to be used for radian deflections temp for now, change when CG
+c_prop_pitch = 0.0103 # coefficient for A2 allocation matrix. multiplied by thrust and deflection to get y roll moment DERIVED GEMINI 4/28
 WING_AREA = 0.0923 #m^2
 MEAN_AERO_CHORD = 0.1759 #m
 
